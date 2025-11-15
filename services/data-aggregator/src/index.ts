@@ -10,7 +10,7 @@ import {
   CACHE_KEYS,
   CACHE_TTL,
   isRedisConnected,
-} from './clients/redis';
+} from '@eterna/redis-client';
 
 dotenv.config();
 
@@ -71,17 +71,23 @@ async function runDataAggregation() {
 
     await Promise.all(cachePromises);
 
+    await redisClient.publish(
+      'token-updates',
+      JSON.stringify({ status: 'updated', runId, timestamp: Date.now() })
+    );
+    console.log(`[Run #${runId}] Published 'token-updates' event to Redis`);
+
     console.log(`\n[Run #${runId}] Statistics:`);
-    console.log(`  • Total tokens: ${stats.total}`);
-    console.log(`  • DexScreener: ${stats.bySource.dexscreener}`);
-    console.log(`  • GeckoTerminal: ${stats.bySource.geckoterminal}`);
+    console.log(`- Total tokens: ${stats.total}`);
+    console.log(`- DexScreener: ${stats.bySource.dexscreener}`);
+    console.log(`- GeckoTerminal: ${stats.bySource.geckoterminal}`);
     console.log(
-      `  • Average 24h volume: $${stats.avgVolume.toLocaleString(undefined, {
+      `- Average 24h volume: $${stats.avgVolume.toLocaleString(undefined, {
         maximumFractionDigits: 2,
       })}`
     );
     console.log(
-      `  • Average price: $${stats.avgPrice.toLocaleString(undefined, {
+      `- Average price: $${stats.avgPrice.toLocaleString(undefined, {
         maximumFractionDigits: 6,
       })}`
     );
@@ -106,12 +112,12 @@ async function shutdown(signal: string) {
 async function main() {
   console.log('\nData Aggregator Service Starting...\n');
   console.log('Configuration:');
-  console.log(`  • Port: ${PORT}`);
+  console.log(`- Port: ${PORT}`);
   console.log(
-    `  • Redis URL: ${process.env.REDIS_URL || 'redis://127.0.0.1:6379'}`
+    `- Redis URL: ${process.env.REDIS_URL || 'redis://127.0.0.1:6379'}`
   );
-  console.log(`  • Update interval: Every 30 seconds`);
-  console.log(`  • Cache TTL: ${CACHE_TTL.TOKENS} seconds\n`);
+  console.log(`- Update interval: Every 30 seconds`);
+  console.log(`- Cache TTL: ${CACHE_TTL.TOKENS} seconds\n`);
 
   if (!isRedisConnected()) {
     console.log('Waiting for Redis connection...');

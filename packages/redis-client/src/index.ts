@@ -39,9 +39,9 @@ export const CACHE_KEYS = {
 } as const;
 
 export const CACHE_TTL = {
-  TOKENS: 30, // 30 seconds - frequent updates for real-time data
-  STATS: 60, // 1 minute
-  SYSTEM: 300, // 5 minutes
+  TOKENS: 30,
+  STATS: 60,
+  SYSTEM: 300,
 } as const;
 
 export async function setCache(
@@ -63,7 +63,6 @@ export async function setCache(
   }
 }
 
-// Helper function to safely get cache with error handling
 export async function getCache<T>(key: string): Promise<T | null> {
   try {
     const value = await redisClient.get(key);
@@ -75,7 +74,6 @@ export async function getCache<T>(key: string): Promise<T | null> {
   }
 }
 
-// Helper function to delete cache entries
 export async function deleteCache(key: string): Promise<boolean> {
   try {
     await redisClient.del(key);

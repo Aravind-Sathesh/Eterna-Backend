@@ -4,7 +4,8 @@
   "private": true,
   "description": "Real-time meme coin data aggregation microservices",
   "workspaces": [
-    "services/*"
+    "services/*",
+    "packages/*"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:aggregator\" \"npm run dev:gateway\" \"npm run dev:websocket\"",

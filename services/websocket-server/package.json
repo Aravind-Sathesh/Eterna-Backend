@@ -19,8 +19,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@eterna/redis-client": "*",
+    "@eterna/types": "*",
     "ws": "^8.16.0",
-    "ioredis": "^5.3.2",
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
