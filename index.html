@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Real-Time Meme Coin Aggregator Demo</title>
+    <style>
+      :root {
+        --bg-color: #121212;
+        --card-color: #1e1e1e;
+        --text-color: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --border-color: #333;
+        --green: #4caf50;
+        --red: #f44336;
+        --blue: #2196f3;
+        --pulse-color: rgba(33, 150, 243, 0.3);
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Helvetica, Arial, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: auto;
+        background-color: var(--card-color);
+        border-radius: 8px;
+        padding: 20px;
+        border: 1px solid var(--border-color);
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 10px;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: var(--text-secondary);
+        margin-top: 0;
+        margin-bottom: 20px;
+      }
+
+      .status-bar {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding: 10px;
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .status-light {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #ccc;
+      }
+
+      .status-light.connected {
+        background-color: var(--green);
+      }
+      .status-light.disconnected {
+        background-color: var(--red);
+      }
+      .status-light.connecting {
+        background-color: #ffc107;
+      }
+
+      .controls {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 20px;
+        align-items: center;
+      }
+
+      .controls label {
+        margin-right: 10px;
+        color: var(--text-secondary);
+      }
+
+      .controls select {
+        background-color: #333;
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        padding: 8px;
+        border-radius: 4px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      thead tr {
+        background-color: #2a2a2a;
+      }
+
+      tbody tr:hover {
+        background-color: #2c2c2c;
+      }
+
+      .positive {
+        color: var(--green);
+      }
+      .negative {
+        color: var(--red);
+      }
+
+      .token-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .token-symbol {
+        font-weight: bold;
+      }
+
+      .token-name {
+        color: var(--text-secondary);
+        font-size: 12px;
+      }
+
+      .align-right {
+        text-align: right;
+      }
+
+      @keyframes pulse {
+        0% {
+          background-color: transparent;
+        }
+        50% {
+          background-color: var(--pulse-color);
+        }
+        100% {
+          background-color: transparent;
+        }
+      }
+
+      .table-flash {
+        animation: pulse 0.75s ease-in-out;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Real-Time Meme Coin Aggregator</h1>
+      <p class="subtitle">
+        Demonstrating a Node.js microservices backend with real-time WebSocket
+        updates.
+      </p>
+
+      <div class="status-bar">
+        <div class="status">
+          <div id="api-status-light" class="status-light"></div>
+          <span id="api-status-text">API Status: Initializing...</span>
+        </div>
+        <div class="status">
+          <div id="ws-status-light" class="status-light"></div>
+          <span id="ws-status-text">WebSocket: Connecting...</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <label for="sort-select">Sort By:</label>
+        <select id="sort-select">
+          <option value="volume_usd_24h">24h Volume</option>
+          <option value="price_24hr_change_usd">24h Change</option>
+          <option value="market_cap_usd">Market Cap</option>
+        </select>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Token</th>
+            <th class="align-right">Price (USD)</th>
+            <th class="align-right">24h Volume</th>
+            <th class="align-right">1h Change</th>
+            <th class="align-right">24h Change</th>
+            <th class="align-right">Market Cap</th>
+          </tr>
+        </thead>
+        <tbody id="token-table-body">
+          <!-- Data will be injected here by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      // --- CONFIGURATION ---
+      const API_BASE_URL = 'http://localhost:3000/api';
+      const WS_URL = 'ws://localhost:8080';
+
+      // --- DOM ELEMENTS ---
+      const tableBody = document.getElementById('token-table-body');
+      const apiStatusLight = document.getElementById('api-status-light');
+      const apiStatusText = document.getElementById('api-status-text');
+      const wsStatusLight = document.getElementById('ws-status-light');
+      const wsStatusText = document.getElementById('ws-status-text');
+      const sortSelect = document.getElementById('sort-select');
+
+      // --- STATE ---
+      let currentSortBy = 'volume_usd_24h';
+
+      // --- HELPER FUNCTIONS ---
+      const formatCurrency = (value) => {
+        if (typeof value !== 'number') return 'N/A';
+        if (value < 0.01) {
+          return '$' + value.toPrecision(4);
+        }
+        return value.toLocaleString('en-US', {
+          style: 'currency',
+          currency: 'USD',
+        });
+      };
+
+      const formatPercentage = (value) => {
+        if (typeof value !== 'number') return 'N/A';
+        const sign = value > 0 ? '+' : '';
+        return `${sign}${value.toFixed(2)}%`;
+      };
+
+      const getChangeClass = (value) => {
+        if (typeof value !== 'number') return '';
+        return value >= 0 ? 'positive' : 'negative';
+      };
+
+      // --- RENDER FUNCTION ---
+      const renderTable = (tokens) => {
+        tableBody.innerHTML = ''; // Clear existing rows
+        if (!tokens || tokens.length === 0) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 6;
+          td.textContent = 'No token data available. Waiting for updates...';
+          td.style.textAlign = 'center';
+          tr.appendChild(td);
+          tableBody.appendChild(tr);
+          return;
+        }
+
+        tokens.forEach((token) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+                    <td>
+                        <div class="token-info">
+                            <span class="token-symbol">${
+                              token.token_ticker
+                            }</span>
+                            <span class="token-name">${token.token_name}</span>
+                        </div>
+                    </td>
+                    <td class="align-right">${formatCurrency(
+                      token.price_usd
+                    )}</td>
+                    <td class="align-right">${formatCurrency(
+                      token.volume_usd_24h
+                    )}</td>
+                    <td class="align-right ${getChangeClass(
+                      token.price_1hr_change_usd
+                    )}">
+                        ${formatPercentage(token.price_1hr_change_usd)}
+                    </td>
+                    <td class="align-right ${getChangeClass(
+                      token.price_24hr_change_usd
+                    )}">
+                        ${formatPercentage(token.price_24hr_change_usd)}
+                    </td>
+                    <td class="align-right">${formatCurrency(
+                      token.market_cap_usd
+                    )}</td>
+                `;
+          tableBody.appendChild(tr);
+        });
+      };
+
+      // --- CORE LOGIC ---
+      const fetchInitialData = async () => {
+        apiStatusLight.className = 'status-light connecting';
+        apiStatusText.textContent = 'API Status: Fetching...';
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/tokens?sortBy=${currentSortBy}&limit=100`
+          );
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const result = await response.json();
+          renderTable(result.data);
+          apiStatusLight.className = 'status-light connected';
+          apiStatusText.textContent = 'API Status: Connected';
+        } catch (error) {
+          console.error('Failed to fetch initial data:', error);
+          apiStatusLight.className = 'status-light disconnected';
+          apiStatusText.textContent = 'API Status: Error';
+          renderTable([]);
+        }
+      };
+
+      const connectWebSocket = () => {
+        const ws = new WebSocket(WS_URL);
+
+        ws.onopen = () => {
+          console.log('WebSocket connection established');
+          wsStatusLight.className = 'status-light connected';
+          wsStatusText.textContent = 'WebSocket: Connected';
+        };
+
+        ws.onmessage = (event) => {
+          console.log('WebSocket message received');
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'TOKEN_UPDATE' && data.payload) {
+            // Flash the table to indicate a live update
+            tableBody.parentElement.classList.add('table-flash');
+            setTimeout(() => {
+              tableBody.parentElement.classList.remove('table-flash');
+            }, 750);
+
+            // Re-render the table with the new data
+            // Note: We ignore the current sort order here and just display the live push
+            renderTable(data.payload);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log(
+            'WebSocket connection closed. Reconnecting in 5 seconds...'
+          );
+          wsStatusLight.className = 'status-light disconnected';
+          wsStatusText.textContent = 'WebSocket: Disconnected';
+          setTimeout(connectWebSocket, 5000); // Attempt to reconnect
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          ws.close();
+        };
+      };
+
+      // --- INITIALIZATION ---
+      document.addEventListener('DOMContentLoaded', () => {
+        fetchInitialData();
+        connectWebSocket();
+
+        sortSelect.addEventListener('change', (e) => {
+          currentSortBy = e.target.value;
+          fetchInitialData(); // Re-fetch data with the new sort order
+        });
+      });
+    </script>
+  </body>
+</html>
