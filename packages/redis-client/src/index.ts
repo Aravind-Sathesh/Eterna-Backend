@@ -88,4 +88,7 @@ export function isRedisConnected(): boolean {
   return redisClient.status === 'ready' || redisClient.status === 'connect';
 }
 
+// Export queue utilities
+export * from './queue';
+
 export default redisClient;
