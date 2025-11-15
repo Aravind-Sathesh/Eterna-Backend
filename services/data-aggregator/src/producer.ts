@@ -3,10 +3,13 @@ import {
   tokenAggregationQueue,
   getQueueMetrics,
   closeQueue,
+  createLogger,
   type TokenAggregationJobData,
 } from '@eterna/redis-client';
 
 dotenv.config();
+
+const logger = createLogger('aggregator-producer');
 
 const SCHEDULE_INTERVAL = parseInt(
   process.env.SCHEDULE_INTERVAL || '30000',
@@ -28,59 +31,57 @@ async function scheduleTokenAggregation(): Promise<void> {
       jobId: jobData.jobId,
     });
 
-    console.log(
-      `[Producer] Scheduled job ${job.id} at ${new Date(
-        jobData.timestamp
-      ).toISOString()}`
+    logger.info(
+      { jobId: job.id, timestamp: new Date(jobData.timestamp).toISOString() },
+      'Scheduled job'
     );
 
     if (jobCounter % 10 === 0) {
       const metrics = await getQueueMetrics(tokenAggregationQueue);
-      console.log('[Producer] Queue metrics:', metrics);
+      logger.info({ metrics }, 'Queue metrics');
     }
   } catch (error) {
-    console.error('[Producer] Failed to schedule job:', error);
+    logger.error({ error }, 'Failed to schedule job');
   }
 }
 
 async function startProducer(): Promise<void> {
-  console.log('\nToken Aggregation Producer Starting...\n');
-  console.log('Configuration:');
-  console.log(
-    `- Schedule interval: ${SCHEDULE_INTERVAL}ms (${SCHEDULE_INTERVAL / 1000}s)`
+  logger.info(
+    {
+      scheduleIntervalMs: SCHEDULE_INTERVAL,
+      scheduleIntervalSec: SCHEDULE_INTERVAL / 1000,
+      redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+      queueName: tokenAggregationQueue.name,
+    },
+    'Token Aggregation Producer starting'
   );
-  console.log(
-    `- Redis URL: ${process.env.REDIS_URL || 'redis://127.0.0.1:6379'}`
-  );
-  console.log(`- Queue name: ${tokenAggregationQueue.name}\n`);
 
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
   const metrics = await getQueueMetrics(tokenAggregationQueue);
-  console.log('[Producer] Initial queue state:', metrics);
+  logger.info({ metrics }, 'Initial queue state');
 
-  console.log('\n[Producer] Scheduling initial job...\n');
+  logger.info('Scheduling initial job');
   await scheduleTokenAggregation();
 
   schedulerInterval = setInterval(scheduleTokenAggregation, SCHEDULE_INTERVAL);
 
-  console.log('Producer is now running and scheduling jobs!\n');
-  console.log('Press Ctrl+C to stop the producer.\n');
+  logger.info('Producer is now running and scheduling jobs');
 }
 
 async function shutdown(signal: string): Promise<void> {
-  console.log(`\n\n${signal} received. Shutting down producer gracefully...`);
+  logger.info({ signal }, 'Shutting down producer gracefully');
 
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log('[Producer] Stopped job scheduler');
+    logger.info('Stopped job scheduler');
   }
 
   await closeQueue(tokenAggregationQueue);
-  console.log('[Producer] Closed queue connection');
+  logger.info('Closed queue connection');
 
-  console.log('Producer shutdown complete.');
+  logger.info('Producer shutdown complete');
   process.exit(0);
 }
 
@@ -88,6 +89,6 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 startProducer().catch((error) => {
-  console.error('Fatal error during producer startup:', error);
+  logger.fatal({ error }, 'Fatal error during producer startup');
   process.exit(1);
 });

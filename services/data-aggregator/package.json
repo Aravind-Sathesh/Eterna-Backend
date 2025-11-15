@@ -4,9 +4,15 @@
   "description": "Real-time meme coin data aggregation service",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "concurrently \"npm run dev:producer\" \"npm run dev:worker\"",
+    "dev:producer": "tsx watch src/producer.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "dev:legacy": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "concurrently \"npm run start:producer\" \"npm run start:worker\"",
+    "start:producer": "node dist/producer.js",
+    "start:worker": "node dist/worker.js",
+    "start:legacy": "node dist/index.js",
     "test": "jest",
     "test:clients": "tsx src/test-clients.ts",
     "lint": "eslint src --ext .ts"
@@ -30,6 +36,7 @@
   "devDependencies": {
     "@types/node": "^20.10.5",
     "@types/node-cron": "^3.0.11",
+    "concurrently": "^8.2.2",
     "typescript": "^5.3.3",
     "tsx": "^4.7.0"
   }

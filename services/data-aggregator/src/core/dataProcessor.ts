@@ -1,6 +1,9 @@
 import dexScreenerClient from '../clients/dexScreener';
 import geckoTerminalClient from '../clients/geckoTerminal';
 import { AggregatedToken } from '@eterna/types';
+import { createLogger } from '@eterna/redis-client';
+
+const logger = createLogger('data-processor');
 
 export type { AggregatedToken };
 
@@ -112,29 +115,34 @@ function mergeTokenData(
 }
 
 export async function fetchAndProcessTokenData(): Promise<AggregatedToken[]> {
-  console.log('[DataProcessor] Starting data aggregation cycle...');
+  logger.info('Starting data aggregation cycle');
   const startTime = Date.now();
 
   try {
-    console.log(
-      '[DataProcessor] Fetching from DexScreener and GeckoTerminal...'
-    );
+    logger.info('Fetching from DexScreener and GeckoTerminal');
     const [dexScreenerPairs, geckoTerminalPools] = await Promise.all([
       dexScreenerClient.getLatestPairs('solana').catch((err: any) => {
-        console.error('[DexScreener] Fetch failed:', err.message);
+        logger.error(
+          { err: err.message, source: 'dexscreener' },
+          'Fetch failed'
+        );
         return [];
       }),
       geckoTerminalClient.getTrendingPools('solana').catch((err: any) => {
-        console.error('[GeckoTerminal] Fetch failed:', err.message);
+        logger.error(
+          { err: err.message, source: 'geckoterminal' },
+          'Fetch failed'
+        );
         return [];
       }),
     ]);
 
-    console.log(
-      `[DataProcessor] Fetched ${dexScreenerPairs.length} pairs from DexScreener`
-    );
-    console.log(
-      `[DataProcessor] Fetched ${geckoTerminalPools.length} pools from GeckoTerminal`
+    logger.info(
+      {
+        dexScreenerCount: dexScreenerPairs.length,
+        geckoTerminalCount: geckoTerminalPools.length,
+      },
+      'Fetched data from sources'
     );
 
     const transformedDexScreener = dexScreenerPairs
@@ -142,7 +150,7 @@ export async function fetchAndProcessTokenData(): Promise<AggregatedToken[]> {
         try {
           return transformDexScreenerData(pair);
         } catch (err) {
-          console.error('[DexScreener] Transform error:', err);
+          logger.error({ err, source: 'dexscreener' }, 'Transform error');
           return null;
         }
       })
@@ -153,17 +161,18 @@ export async function fetchAndProcessTokenData(): Promise<AggregatedToken[]> {
         try {
           return transformGeckoTerminalData(pool);
         } catch (err) {
-          console.error('[GeckoTerminal] Transform error:', err);
+          logger.error({ err, source: 'geckoterminal' }, 'Transform error');
           return null;
         }
       })
       .filter((token): token is AggregatedToken => token !== null);
 
-    console.log(
-      `[DataProcessor] Transformed ${transformedDexScreener.length} tokens from DexScreener`
-    );
-    console.log(
-      `[DataProcessor] Transformed ${transformedGeckoTerminal.length} tokens from GeckoTerminal`
+    logger.info(
+      {
+        dexScreenerTransformed: transformedDexScreener.length,
+        geckoTerminalTransformed: transformedGeckoTerminal.length,
+      },
+      'Transformed data from sources'
     );
 
     const tokenMap = new Map<string, AggregatedToken>();
@@ -194,13 +203,14 @@ export async function fetchAndProcessTokenData(): Promise<AggregatedToken[]> {
     finalTokenList.sort((a, b) => b.volume_usd_24h - a.volume_usd_24h);
 
     const duration = Date.now() - startTime;
-    console.log(
-      `[DataProcessor] Successfully processed ${finalTokenList.length} unique tokens in ${duration}ms`
+    logger.info(
+      { uniqueTokens: finalTokenList.length, durationMs: duration },
+      'Successfully processed tokens'
     );
 
     return finalTokenList;
   } catch (error) {
-    console.error('[DataProcessor] Fatal error during processing:', error);
+    logger.error({ error }, 'Fatal error during processing');
     throw error;
   }
 }

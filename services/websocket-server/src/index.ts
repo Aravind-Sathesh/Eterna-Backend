@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
 import { WebSocketServer, WebSocket } from 'ws';
-import { getCache, CACHE_KEYS, redisClient } from '@eterna/redis-client';
+import {
+  getCache,
+  CACHE_KEYS,
+  redisClient,
+  createLogger,
+} from '@eterna/redis-client';
+const logger = createLogger('websocket-server');
 
 dotenv.config();
 
@@ -26,23 +32,23 @@ function broadcast(data: any) {
 }
 
 subscriber.on('connect', () => {
-  console.log('Subscriber connected to Redis');
+  logger.info('Subscriber connected to Redis');
 });
 
 subscriber.on('ready', () => {
-  console.log('Subscriber is ready');
+  logger.info('Subscriber is ready');
 });
 
 subscriber.subscribe('token-updates', (err) => {
   if (err) {
-    console.error('Failed to subscribe to Redis channel:', err);
+    logger.error({ error: err }, 'Failed to subscribe to Redis channel');
   } else {
-    console.log('Subscribed to "token-updates" channel');
+    logger.info('Subscribed to token-updates channel');
   }
 });
 
 subscriber.on('message', async (channel, message) => {
-  console.log(`\nReceived message from channel "${channel}":`, message);
+  logger.debug({ channel, message }, 'Received message from Redis');
 
   try {
     const latestTokens = await getCache(CACHE_KEYS.TOKENS_LATEST);
@@ -53,21 +59,19 @@ subscriber.on('message', async (channel, message) => {
         payload: latestTokens,
         timestamp: Date.now(),
       });
-      console.log(
-        `Broadcasted update to ${sentCount}/${wss.clients.size} clients\n`
-      );
+      logger.debug({ sentCount }, 'Broadcast token update to clients');
     } else {
-      console.warn('No tokens in cache, skipping broadcast\n');
+      logger.warn('No tokens in cache, skipping broadcast');
     }
   } catch (error) {
-    console.error('Error processing message:', error);
+    logger.error({ error }, 'Error processing message');
   }
 });
 
 wss.on('connection', (ws) => {
   clientCount++;
   const clientId = clientCount;
-  console.log(`Client #${clientId} connected (Total: ${wss.clients.size})`);
+  logger.info({ clientId, totalClients: wss.clients.size }, 'Client connected');
 
   ws.send(
     JSON.stringify({
@@ -80,7 +84,7 @@ wss.on('connection', (ws) => {
   ws.on('message', async (data) => {
     try {
       const message = JSON.parse(data.toString());
-      console.log(`Message from client #${clientId}:`, message);
+      logger.debug({ clientId, message }, 'Message from client');
 
       if (message.type === 'REQUEST_TOKENS') {
         const tokens = await getCache(CACHE_KEYS.TOKENS_LATEST);
@@ -93,67 +97,61 @@ wss.on('connection', (ws) => {
         );
       }
     } catch (error) {
-      console.error('Error handling message:', error);
+      logger.error({ error }, 'Error handling message');
     }
   });
 
   ws.on('close', () => {
-    console.log(
-      `Client #${clientId} disconnected (Total: ${wss.clients.size})`
+    logger.info(
+      { clientId, remainingClients: wss.clients.size },
+      'Client disconnected'
     );
   });
 
   ws.on('error', (error) => {
-    console.error(`Client #${clientId} error:`, error);
+    logger.error({ error, clientId }, 'Client error');
   });
 });
 
 async function shutdown(signal: string) {
-  console.log(`\n${signal} received. Shutting down gracefully...`);
+  logger.info({ signal }, 'Shutting down gracefully');
 
-  console.log('Closing WebSocket connections...');
+  logger.info('Closing WebSocket connections');
   wss.clients.forEach((client) => {
     client.close();
   });
 
-  console.log('Closing Redis connections...');
+  logger.info('Closing Redis connections');
   await subscriber.quit();
   await redisClient.quit();
 
-  console.log('Closing WebSocket server...');
+  logger.info('Closing WebSocket server');
   wss.close(() => {
-    console.log('Shutdown complete.');
+    logger.info('Shutdown complete');
     process.exit(0);
   });
 
   setTimeout(() => {
-    console.error('Forced shutdown after timeout');
+    logger.error('Forced shutdown after timeout');
     process.exit(1);
   }, 5000);
 }
 
 async function main() {
-  console.log('\nWebSocket Server Starting...\n');
-  console.log('Configuration:');
-  console.log(`- Port: ${PORT}`);
-  console.log(
-    `- Redis URL: ${process.env.REDIS_URL || 'redis://127.0.0.1:6379'}\n`
-  );
+  logger.info('WebSocket Server starting');
 
   await new Promise<void>((resolve) => {
     subscriber.once('ready', () => resolve());
     setTimeout(() => resolve(), 5000);
   });
 
-  console.log('WebSocket server is now running!');
-  console.log(`Listening on ws://localhost:${PORT}\n`);
-  console.log('Waiting for connections...\n');
+  logger.info({ port: PORT }, 'WebSocket server is now running');
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 main().catch((error) => {
-  console.error('Fatal error during startup:', error);
+  logger.fatal({ error }, 'Fatal error during startup');
   process.exit(1);
 });

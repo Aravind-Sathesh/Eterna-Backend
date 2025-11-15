@@ -9,6 +9,7 @@ import {
   CACHE_KEYS,
   CACHE_TTL,
   isRedisConnected,
+  createLogger,
   type TokenAggregationJobData,
 } from '@eterna/redis-client';
 import {
@@ -20,6 +21,8 @@ dotenv.config();
 
 const WORKER_CONCURRENCY = parseInt(process.env.WORKER_CONCURRENCY || '1', 10);
 const WORKER_ID = process.env.WORKER_ID || `worker-${process.pid}`;
+const baseLogger = createLogger('aggregator-worker');
+const logger = baseLogger.child({ workerId: WORKER_ID });
 
 let worker: Worker<TokenAggregationJobData> | null = null;
 let jobsProcessed = 0;
@@ -30,17 +33,13 @@ async function processTokenAggregation(
   const startTime = Date.now();
   const runId = ++jobsProcessed;
 
-  console.log(`[${WORKER_ID}] [Job ${job.id}] Starting aggregation...`);
-  console.log(`[${WORKER_ID}] [Job ${job.id}] Run #${runId}`);
-  console.log(`[${WORKER_ID}] [Job ${job.id}] Data:`, job.data);
+  logger.info({ jobId: job.id, runId, data: job.data }, 'Starting aggregation');
 
   try {
     await job.updateProgress(10);
 
     if (!isRedisConnected()) {
-      console.warn(
-        `[${WORKER_ID}] [Job ${job.id}] Warning: Redis not connected`
-      );
+      logger.warn({ jobId: job.id }, 'Redis not connected');
     }
 
     // Fetch and process token data
@@ -48,9 +47,7 @@ async function processTokenAggregation(
     const tokens = await fetchAndProcessTokenData();
 
     if (tokens.length === 0) {
-      console.warn(
-        `[${WORKER_ID}] [Job ${job.id}] No tokens found. Skipping cache update.`
-      );
+      logger.warn({ jobId: job.id }, 'No tokens found, skipping cache update');
       return { success: false, tokensProcessed: 0 };
     }
 
@@ -107,48 +104,40 @@ async function processTokenAggregation(
 
     const duration = Date.now() - startTime;
 
-    console.log(`\n[${WORKER_ID}] [Job ${job.id}] Statistics:`);
-    console.log(`- Total tokens: ${stats.total}`);
-    console.log(`- DexScreener: ${stats.bySource.dexscreener}`);
-    console.log(`- GeckoTerminal: ${stats.bySource.geckoterminal}`);
-    console.log(
-      `- Average 24h volume: $${stats.avgVolume.toLocaleString(undefined, {
-        maximumFractionDigits: 2,
-      })}`
-    );
-    console.log(
-      `- Average price: $${stats.avgPrice.toLocaleString(undefined, {
-        maximumFractionDigits: 6,
-      })}`
-    );
-    console.log(`\n[${WORKER_ID}] [Job ${job.id}] Completed in ${duration}ms`);
-    console.log(
-      `[${WORKER_ID}] [Job ${job.id}] Cached ${tokens.length} tokens to Redis\n`
+    logger.info(
+      {
+        jobId: job.id,
+        durationMs: duration,
+        totalTokens: stats.total,
+        dexScreener: stats.bySource.dexscreener,
+        geckoTerminal: stats.bySource.geckoterminal,
+        avgVolume: stats.avgVolume,
+        avgPrice: stats.avgPrice,
+        cachedTokens: tokens.length,
+      },
+      'Job completed successfully'
     );
 
     return { success: true, tokensProcessed: tokens.length };
   } catch (error) {
-    console.error(
-      `\n[${WORKER_ID}] [Job ${job.id}] Error during aggregation:`,
-      error
-    );
-    console.error(
-      `[${WORKER_ID}] [Job ${job.id}] Stack:`,
-      (error as Error).stack
+    logger.error(
+      { error, jobId: job.id, stack: (error as Error).stack },
+      'Error during aggregation'
     );
     throw error; // Trigger BullMQ retry mechanism
   }
 }
 
 async function startWorker(): Promise<void> {
-  console.log('\n🔧 Token Aggregation Worker Starting...\n');
-  console.log('Configuration:');
-  console.log(`- Worker ID: ${WORKER_ID}`);
-  console.log(`- Concurrency: ${WORKER_CONCURRENCY}`);
-  console.log(
-    `- Redis URL: ${process.env.REDIS_URL || 'redis://127.0.0.1:6379'}`
+  logger.info(
+    {
+      workerId: WORKER_ID,
+      concurrency: WORKER_CONCURRENCY,
+      redisUrl: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+      queueName: tokenAggregationQueue.name,
+    },
+    'Token Aggregation Worker starting'
   );
-  console.log(`- Queue name: ${tokenAggregationQueue.name}\n`);
 
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -168,56 +157,54 @@ async function startWorker(): Promise<void> {
   );
 
   worker.on('completed', async (job, result) => {
-    console.log(
-      `[${WORKER_ID}] Job ${job.id} completed successfully. Processed ${result.tokensProcessed} tokens.`
+    logger.info(
+      { jobId: job.id, tokensProcessed: result.tokensProcessed },
+      'Job completed'
     );
 
     if (jobsProcessed % 5 === 0) {
       const metrics = await getQueueMetrics(tokenAggregationQueue);
-      console.log(`[${WORKER_ID}] Queue metrics:`, metrics);
+      logger.info({ metrics }, 'Queue metrics');
     }
   });
 
   worker.on('failed', (job, err) => {
-    console.error(
-      `[${WORKER_ID}] Job ${job?.id} failed after ${job?.attemptsMade} attempts:`,
-      err.message
+    logger.error(
+      { jobId: job?.id, attemptsMade: job?.attemptsMade, error: err.message },
+      'Job failed'
     );
   });
 
   worker.on('error', (err) => {
-    console.error(`[${WORKER_ID}] Worker error:`, err);
+    logger.error({ error: err }, 'Worker error');
   });
 
   worker.on('stalled', (jobId) => {
-    console.warn(`[${WORKER_ID}]  Job ${jobId} stalled`);
+    logger.warn({ jobId }, 'Job stalled');
   });
 
-  console.log(`Worker ${WORKER_ID} is now running and processing jobs!\n`);
-  console.log('Press Ctrl+C to stop the worker.\n');
+  logger.info('Worker is now running and processing jobs');
 
-  // Get initial queue state
   const metrics = await getQueueMetrics(tokenAggregationQueue);
-  console.log(`[${WORKER_ID}] Initial queue state:`, metrics, '\n');
+  logger.info({ metrics }, 'Initial queue state');
 }
 
 async function shutdown(signal: string): Promise<void> {
-  console.log(`\n\n${signal} received. Shutting down worker gracefully...`);
+  logger.info({ signal }, 'Shutting down worker gracefully');
 
-  // Close the worker (will finish current jobs)
   if (worker) {
-    console.log(
-      `[${WORKER_ID}] Closing worker (waiting for active jobs to complete)...`
-    );
+    logger.info('Closing worker, waiting for active jobs to complete');
     await worker.close();
-    console.log(`[${WORKER_ID}] Worker closed`);
+    logger.info('Worker closed');
   }
 
   await closeQueue(tokenAggregationQueue);
-  console.log(`[${WORKER_ID}] Closed queue connection`);
+  logger.info('Closed queue connection');
 
-  console.log(`Worker ${WORKER_ID} shutdown complete.`);
-  console.log(`Total jobs processed: ${jobsProcessed}`);
+  logger.info(
+    { totalJobsProcessed: jobsProcessed },
+    'Worker shutdown complete'
+  );
   process.exit(0);
 }
 
@@ -225,6 +212,18 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 startWorker().catch((error) => {
-  console.error('Fatal error during worker startup:', error);
+  logger.fatal(
+    {
+      error:
+        error instanceof Error
+          ? {
+              message: error.message,
+              stack: error.stack,
+              name: error.name,
+            }
+          : error,
+    },
+    'Fatal error during worker startup'
+  );
   process.exit(1);
 });

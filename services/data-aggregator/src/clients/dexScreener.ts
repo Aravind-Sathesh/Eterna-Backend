@@ -1,4 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
+import { createLogger } from '@eterna/redis-client';
+
+const logger = createLogger('dexscreener-client');
 
 interface TokenProfile {
   url: string;
@@ -114,8 +117,13 @@ export class DexScreenerClient {
         ) {
           error.config.__retryCount += 1;
           const delay = Math.pow(2, error.config.__retryCount) * 1000;
-          console.log(
-            `DexScreener rate limit hit. Retrying in ${delay}ms (attempt ${error.config.__retryCount}/${this.maxRetries})`
+          logger.warn(
+            {
+              delay,
+              attempt: error.config.__retryCount,
+              maxRetries: this.maxRetries,
+            },
+            'DexScreener rate limit hit, retrying'
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
           return this.client.request(error.config);
@@ -133,7 +141,7 @@ export class DexScreenerClient {
       });
       return response.data.pairs || [];
     } catch (error) {
-      console.error('Error searching pairs on DexScreener:', error);
+      logger.error({ error }, 'Error searching pairs on DexScreener');
       throw new Error(
         `Failed to search pairs: ${
           error instanceof Error ? error.message : 'Unknown error'
@@ -158,7 +166,7 @@ export class DexScreenerClient {
       );
       return response.data.pairs || [];
     } catch (error) {
-      console.error('Error fetching token pairs from DexScreener:', error);
+      logger.error({ error }, 'Error fetching token pairs from DexScreener');
       throw new Error(
         `Failed to fetch token pairs: ${
           error instanceof Error ? error.message : 'Unknown error'
@@ -183,7 +191,10 @@ export class DexScreenerClient {
       );
       return response.data.pairs || [];
     } catch (error) {
-      console.error('Error fetching pairs by address from DexScreener:', error);
+      logger.error(
+        { error },
+        'Error fetching pairs by address from DexScreener'
+      );
       throw new Error(
         `Failed to fetch pairs: ${
           error instanceof Error ? error.message : 'Unknown error'
@@ -206,7 +217,7 @@ export class DexScreenerClient {
       );
       return response.data || {};
     } catch (error) {
-      console.error('Error fetching token profiles from DexScreener:', error);
+      logger.error({ error }, 'Error fetching token profiles from DexScreener');
       throw new Error(
         `Failed to fetch token profiles: ${
           error instanceof Error ? error.message : 'Unknown error'
@@ -230,9 +241,9 @@ export class DexScreenerClient {
         (pair) => pair.chainId.toLowerCase() === chainId.toLowerCase()
       );
     } catch (error) {
-      console.error(
-        `Error fetching latest pairs for ${chainId} from DexScreener:`,
-        error
+      logger.error(
+        { error, chainId },
+        'Error fetching latest pairs from DexScreener'
       );
       throw new Error(
         `Failed to fetch latest pairs: ${

@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { getCache, CACHE_KEYS } from '@eterna/redis-client';
+import { getCache, CACHE_KEYS, createLogger } from '@eterna/redis-client';
+
+const logger = createLogger('token-routes');
 import { AggregatedToken } from '@eterna/types';
 
 const router = Router();
@@ -74,7 +76,7 @@ router.get('/tokens', async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    console.error('Error in /tokens route:', error);
+    logger.error({ error }, 'Error in /tokens route');
     res.status(500).json({
       message: 'Internal Server Error',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -97,7 +99,7 @@ router.get(
 
       res.json(stats);
     } catch (error) {
-      console.error('Error in /tokens/stats route:', error);
+      logger.error({ error }, 'Error in /tokens/stats route');
       res.status(500).json({
         message: 'Internal Server Error',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -132,7 +134,7 @@ router.get(
         },
       });
     } catch (error) {
-      console.error('Error in /tokens/trending route:', error);
+      logger.error({ error }, 'Error in /tokens/trending route');
       res.status(500).json({
         message: 'Internal Server Error',
         error: error instanceof Error ? error.message : 'Unknown error',

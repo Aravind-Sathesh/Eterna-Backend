@@ -1,4 +1,7 @@
 import Redis from 'ioredis';
+import { createLogger } from './logger';
+
+const logger = createLogger('redis-client');
 
 export const redisClient = new Redis(
   process.env.REDIS_URL || 'redis://127.0.0.1:6379',
@@ -7,28 +10,28 @@ export const redisClient = new Redis(
       const delay = Math.min(times * 50, 2000);
       return delay;
     },
-    maxRetriesPerRequest: 3,
+    maxRetriesPerRequest: null, // Required for BullMQ blocking operations
   }
 );
 
 redisClient.on('connect', () => {
-  console.log('Connected to Redis');
+  logger.info('Connected to Redis');
 });
 
 redisClient.on('ready', () => {
-  console.log('Redis client is ready');
+  logger.info('Redis client is ready');
 });
 
 redisClient.on('error', (err) => {
-  console.error('Redis connection error:', err.message);
+  logger.error({ err: err.message }, 'Redis connection error');
 });
 
 redisClient.on('close', () => {
-  console.log('Redis connection closed');
+  logger.info('Redis connection closed');
 });
 
 redisClient.on('reconnecting', () => {
-  console.log('Reconnecting to Redis...');
+  logger.info('Reconnecting to Redis');
 });
 
 export const CACHE_KEYS = {
@@ -58,7 +61,7 @@ export async function setCache(
     }
     return true;
   } catch (error) {
-    console.error(`Failed to set cache for key ${key}:`, error);
+    logger.error({ key, error }, 'Failed to set cache');
     return false;
   }
 }
@@ -69,7 +72,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
     if (!value) return null;
     return JSON.parse(value) as T;
   } catch (error) {
-    console.error(`Failed to get cache for key ${key}:`, error);
+    logger.error({ key, error }, 'Failed to get cache');
     return null;
   }
 }
@@ -79,7 +82,7 @@ export async function deleteCache(key: string): Promise<boolean> {
     await redisClient.del(key);
     return true;
   } catch (error) {
-    console.error(`Failed to delete cache for key ${key}:`, error);
+    logger.error({ key, error }, 'Failed to delete cache');
     return false;
   }
 }
@@ -90,5 +93,8 @@ export function isRedisConnected(): boolean {
 
 // Export queue utilities
 export * from './queue';
+
+// Export logger utilities
+export * from './logger';
 
 export default redisClient;

@@ -1,4 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
+import { createLogger } from '@eterna/redis-client';
+
+const logger = createLogger('geckoterminal-client');
 
 interface Network {
   id: string;
@@ -130,7 +133,7 @@ export class GeckoTerminalClient {
         const remaining = response.headers['x-ratelimit-remaining'];
         const limit = response.headers['x-ratelimit-limit'];
         if (remaining && limit) {
-          console.log(`GeckoTerminal rate limit: ${remaining}/${limit}`);
+          logger.debug({ remaining, limit }, 'GeckoTerminal rate limit status');
         }
         return response;
       },
@@ -149,15 +152,20 @@ export class GeckoTerminalClient {
         ) {
           error.config.__retryCount += 1;
           const delay = Math.pow(2, error.config.__retryCount) * 1000;
-          console.log(
-            `GeckoTerminal rate limit hit. Retrying in ${delay}ms (attempt ${error.config.__retryCount}/${this.maxRetries})`
+          logger.warn(
+            {
+              delay,
+              attempt: error.config.__retryCount,
+              maxRetries: this.maxRetries,
+            },
+            'GeckoTerminal rate limit hit, retrying'
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
           return this.client.request(error.config);
         }
 
         if (error.response?.status === 429) {
-          console.error('GeckoTerminal rate limit exceeded after max retries');
+          logger.error('GeckoTerminal rate limit exceeded after max retries');
         }
         return Promise.reject(error);
       }
@@ -169,7 +177,7 @@ export class GeckoTerminalClient {
       const response = await this.client.get<NetworksResponse>('/networks');
       return response.data.data || [];
     } catch (error) {
-      console.error('Error fetching networks from GeckoTerminal:', error);
+      logger.error({ error }, 'Error fetching networks from GeckoTerminal');
       throw new Error(
         `Failed to fetch networks: ${
           error instanceof Error ? error.message : 'Unknown error'
@@ -185,9 +193,9 @@ export class GeckoTerminalClient {
       );
       return response.data.data || [];
     } catch (error) {
-      console.error(
-        `Error fetching trending pools for ${networkId} from GeckoTerminal:`,
-        error
+      logger.error(
+        { error, networkId },
+        'Error fetching trending pools from GeckoTerminal'
       );
       throw new Error(
         `Failed to fetch trending pools: ${
@@ -204,9 +212,9 @@ export class GeckoTerminalClient {
       );
       return response.data.data || null;
     } catch (error) {
-      console.error(
-        `Error fetching pool ${poolAddress} on ${networkId} from GeckoTerminal:`,
-        error
+      logger.error(
+        { error, poolAddress, networkId },
+        'Error fetching pool from GeckoTerminal'
       );
       throw new Error(
         `Failed to fetch pool: ${
@@ -235,9 +243,9 @@ export class GeckoTerminalClient {
       );
       return response.data.data || [];
     } catch (error) {
-      console.error(
-        `Error fetching multiple pools on ${networkId} from GeckoTerminal:`,
-        error
+      logger.error(
+        { error, networkId, poolCount: poolAddresses.length },
+        'Error fetching multiple pools from GeckoTerminal'
       );
       throw new Error(
         `Failed to fetch pools: ${
@@ -257,9 +265,9 @@ export class GeckoTerminalClient {
       );
       return response.data.data || [];
     } catch (error) {
-      console.error(
-        `Error fetching pools for token ${tokenAddress} on ${networkId} from GeckoTerminal:`,
-        error
+      logger.error(
+        { error, tokenAddress, networkId },
+        'Error fetching pools for token from GeckoTerminal'
       );
       throw new Error(
         `Failed to fetch token pools: ${
@@ -277,9 +285,9 @@ export class GeckoTerminalClient {
       );
       return response.data.data || [];
     } catch (error) {
-      console.error(
-        `Error fetching new pools for ${networkId} from GeckoTerminal:`,
-        error
+      logger.error(
+        { error, networkId, page },
+        'Error fetching new pools from GeckoTerminal'
       );
       throw new Error(
         `Failed to fetch new pools: ${
@@ -300,7 +308,10 @@ export class GeckoTerminalClient {
       });
       return response.data.data || [];
     } catch (error) {
-      console.error('Error searching pools on GeckoTerminal:', error);
+      logger.error(
+        { error, query, networkId },
+        'Error searching pools on GeckoTerminal'
+      );
       throw new Error(
         `Failed to search pools: ${
           error instanceof Error ? error.message : 'Unknown error'
@@ -330,9 +341,9 @@ export class GeckoTerminalClient {
       );
       return response.data.data?.attributes?.ohlcv_list || [];
     } catch (error) {
-      console.error(
-        `Error fetching OHLCV data for pool ${poolAddress} on ${networkId}:`,
-        error
+      logger.error(
+        { error, poolAddress, networkId, timeframe, aggregate },
+        'Error fetching OHLCV data from GeckoTerminal'
       );
       throw new Error(
         `Failed to fetch OHLCV data: ${
