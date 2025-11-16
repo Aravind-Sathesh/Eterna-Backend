@@ -11,8 +11,7 @@ services:
     plan: free
     env: docker
     dockerContext: .
-    dockerfilePath: ./Dockerfile
-    dockerBuildTarget: api-gateway
+    dockerfilePath: ./Dockerfile.api-gateway
     envVars:
       - key: NODE_ENV
         value: production
@@ -30,8 +29,7 @@ services:
     plan: free
     env: docker
     dockerContext: .
-    dockerfilePath: ./Dockerfile
-    dockerBuildTarget: websocket-server
+    dockerfilePath: ./Dockerfile.websocket-server
     envVars:
       - key: NODE_ENV
         value: production
@@ -49,8 +47,7 @@ services:
     plan: free
     env: docker
     dockerContext: .
-    dockerfilePath: ./Dockerfile
-    dockerBuildTarget: aggregator-producer
+    dockerfilePath: ./Dockerfile.aggregator-producer
     envVars:
       - key: NODE_ENV
         value: production
@@ -66,8 +63,7 @@ services:
     plan: free
     env: docker
     dockerContext: .
-    dockerfilePath: ./Dockerfile
-    dockerBuildTarget: aggregator-worker
+    dockerfilePath: ./Dockerfile.aggregator-worker
     envVars:
       - key: NODE_ENV
         value: production

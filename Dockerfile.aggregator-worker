@@ -1,0 +1,29 @@
+# Dockerfile for the Aggregator Worker Service
+FROM node:lts-alpine AS builder
+WORKDIR /app
+
+COPY package*.json ./
+COPY packages/redis-client/package.json ./packages/redis-client/
+COPY packages/types/package.json ./packages/types/
+COPY services/data-aggregator/package.json ./services/data-aggregator/
+COPY services/websocket-server/package.json ./services/websocket-server/
+COPY services/api-gateway/package.json ./services/api-gateway/
+
+RUN npm ci
+
+COPY . .
+
+RUN npm run build
+
+RUN npm prune --production
+
+FROM node:lts-alpine AS production
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/packages/ ./packages/
+COPY --from=builder /app/services/data-aggregator/ ./services/data-aggregator/
+
+CMD ["node", "services/data-aggregator/dist/worker.js"]
