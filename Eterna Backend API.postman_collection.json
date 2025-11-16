@@ -1,0 +1,358 @@
+{
+	"info": {
+		"_postman_id": "5f1729b5-fb6b-49fb-a595-fee84fbe8bfb",
+		"name": "Eterna Backend API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "50107009",
+		"_collection_link": "https://aravind-sathesh-4740739.postman.co/workspace/Aravind-Sathesh's-Workspace~224872f0-f88e-4b5b-80e9-6d708e445d73/collection/50107009-5f1729b5-fb6b-49fb-a595-fee84fbe8bfb?action=share&source=collection_link&creator=50107009"
+	},
+	"item": [
+		{
+			"name": "Service Status",
+			"item": [
+				{
+					"name": "Get Service Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseurl}}/",
+							"host": [
+								"{{baseurl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "These requests check the health and status of the API service itself."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseurl}}/health",
+							"host": [
+								"{{baseurl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "The official health check endpoint used by Render. Returns `200 OK` if the service is healthy and connected to Redis, or `503 Service Unavailable` if it is not."
+					},
+					"response": []
+				}
+			],
+			"description": "These requests check the health and status of the API service itself."
+		},
+		{
+			"name": "Data & Statistics",
+			"item": [
+				{
+					"name": "Get Aggregation Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseurl}}/api/tokens/stats",
+							"host": [
+								"{{baseurl}}"
+							],
+							"path": [
+								"api",
+								"tokens",
+								"stats"
+							]
+						},
+						"description": "Returns a JSON object with metadata about the last data aggregation cycle, including the total number of unique tokens found and the count from each data source."
+					},
+					"response": []
+				}
+			],
+			"description": "This request showcases the aggregated statistics from the data processor."
+		},
+		{
+			"name": "Token Queries",
+			"item": [
+				{
+					"name": "Sorting",
+					"item": [
+						{
+							"name": "Sort by Price (Descending)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseurl}}/api/tokens?sortBy=price_usd",
+									"host": [
+										"{{baseurl}}"
+									],
+									"path": [
+										"api",
+										"tokens"
+									],
+									"query": [
+										{
+											"key": "sortBy",
+											"value": "price_usd"
+										}
+									]
+								},
+								"description": "Demonstrates sorting the token list by the `price_usd` field in descending order (highest to lowest)."
+							},
+							"response": []
+						},
+						{
+							"name": "Sort by Market Cap (Descending)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseurl}}/api/tokens?sortBy=market_cap_usd",
+									"host": [
+										"{{baseurl}}"
+									],
+									"path": [
+										"api",
+										"tokens"
+									],
+									"query": [
+										{
+											"key": "sortBy",
+											"value": "market_cap_usd"
+										}
+									]
+								},
+								"description": "Demonstrates sorting the token list by market cap."
+							},
+							"response": []
+						},
+						{
+							"name": "Sort by 24h Change (Ascending)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseurl}}/api/tokens?sortBy=price_24hr_change_usd&sortOrder=asc",
+									"host": [
+										"{{baseurl}}"
+									],
+									"path": [
+										"api",
+										"tokens"
+									],
+									"query": [
+										{
+											"key": "sortBy",
+											"value": "price_24hr_change_usd"
+										},
+										{
+											"key": "sortOrder",
+											"value": "asc"
+										}
+									]
+								},
+								"description": "Shows how to change the sort order to ascending (lowest to highest), useful for finding the \"biggest losers.\""
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Pagination",
+					"item": [
+						{
+							"name": "Get First 5 Tokens",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseurl}}/api/tokens?limit=5",
+									"host": [
+										"{{baseurl}}"
+									],
+									"path": [
+										"api",
+										"tokens"
+									],
+									"query": [
+										{
+											"key": "limit",
+											"value": "5"
+										}
+									]
+								},
+								"description": "Shows how the `limit` parameter works to control the page size."
+							},
+							"response": []
+						},
+						{
+							"name": "Get Next 5 Tokens (Page 2)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseurl}}/api/tokens?limit=5&cursor=5",
+									"host": [
+										"{{baseurl}}"
+									],
+									"path": [
+										"api",
+										"tokens"
+									],
+									"query": [
+										{
+											"key": "limit",
+											"value": "5"
+										},
+										{
+											"key": "cursor",
+											"value": "5"
+										}
+									]
+								},
+								"description": "Demonstrates how to fetch the next \"page\" of data using the `cursor` parameter. This is the core of the pagination feature."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Filering",
+					"item": [
+						{
+							"name": "Filter: Volume > $1M",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseurl}}/api/tokens?minVolume=1000000",
+									"host": [
+										"{{baseurl}}"
+									],
+									"path": [
+										"api",
+										"tokens"
+									],
+									"query": [
+										{
+											"key": "minVolume",
+											"value": "1000000"
+										}
+									]
+								},
+								"description": "Shows filtering by a minimum value. Returns only tokens with a 24-hour volume greater than $1,000,000."
+							},
+							"response": []
+						},
+						{
+							"name": "Filter: Price between $1 and $10",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseurl}}/api/tokens?minPrice=1&maxPrice=10",
+									"host": [
+										"{{baseurl}}"
+									],
+									"path": [
+										"api",
+										"tokens"
+									],
+									"query": [
+										{
+											"key": "minPrice",
+											"value": "1"
+										},
+										{
+											"key": "maxPrice",
+											"value": "10"
+										}
+									]
+								},
+								"description": "Demonstrates range filtering. Returns only tokens with a price between $1.00 and $10.00."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Combined Queries",
+					"item": [
+						{
+							"name": "Combined: Filter, Sort, and Paginate",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseurl}}/api/tokens?minVolume=500000&sortBy=price_usd&sortOrder=asc&limit=5",
+									"host": [
+										"{{baseurl}}"
+									],
+									"path": [
+										"api",
+										"tokens"
+									],
+									"query": [
+										{
+											"key": "minVolume",
+											"value": "500000"
+										},
+										{
+											"key": "sortBy",
+											"value": "price_usd"
+										},
+										{
+											"key": "sortOrder",
+											"value": "asc"
+										},
+										{
+											"key": "limit",
+											"value": "5"
+										}
+									]
+								},
+								"description": "A complex query that finds all tokens with a volume over $500k, sorts them by price from lowest to highest, and returns only the first 5 results."
+							},
+							"response": []
+						}
+					]
+				}
+			],
+			"description": "This request showcases the aggregated statistics from the data processor."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseurl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}
