@@ -2,23 +2,25 @@ services:
   # 1. The managed Redis instance
   - name: eterna-redis
     type: redis
-    plan: free # Use the free tier for this project
-    ipAllowList: [] # Allows all services in your account to connect
+    plan: free
+    ipAllowList: []
 
   # 2. The API Gateway (a public web service)
   - name: eterna-api-gateway
     type: web
     plan: free
     env: docker
-    dockerfilePath: ./Dockerfile
-    dockerBuildTarget: api-gateway # Tells Render which stage to build
+    build:
+      context: .
+      dockerfilePath: ./Dockerfile
+      target: api-gateway
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
       - key: REDIS_URL
-        fromService: # Automatically gets the connection string from the Redis service
+        fromService:
           type: redis
           name: eterna-redis
           property: connectionString
@@ -28,8 +30,10 @@ services:
     type: web
     plan: free
     env: docker
-    dockerfilePath: ./Dockerfile
-    dockerBuildTarget: websocket-server # Tells Render to build the websocket stage
+    build:
+      context: .
+      dockerfilePath: ./Dockerfile
+      target: websocket-server
     envVars:
       - key: NODE_ENV
         value: production
@@ -43,11 +47,13 @@ services:
 
   # 4. The Aggregator Producer (a background worker)
   - name: eterna-aggregator-producer
-    type: worker # IMPORTANT: 'worker' type means it runs in the background
+    type: worker
     plan: free
     env: docker
-    dockerfilePath: ./Dockerfile
-    dockerBuildTarget: aggregator-producer
+    build:
+      context: .
+      dockerfilePath: ./Dockerfile
+      target: aggregator-producer
     envVars:
       - key: NODE_ENV
         value: production
@@ -62,8 +68,10 @@ services:
     type: worker
     plan: free
     env: docker
-    dockerfilePath: ./Dockerfile
-    dockerBuildTarget: aggregator-worker
+    build:
+      context: .
+      dockerfilePath: ./Dockerfile
+      target: aggregator-worker
     envVars:
       - key: NODE_ENV
         value: production
