@@ -1,0 +1,74 @@
+services:
+  # 1. The managed Redis instance
+  - name: eterna-redis
+    type: redis
+    plan: free # Use the free tier for this project
+    ipAllowList: [] # Allows all services in your account to connect
+
+  # 2. The API Gateway (a public web service)
+  - name: eterna-api-gateway
+    type: web
+    plan: free
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerBuildTarget: api-gateway # Tells Render which stage to build
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: REDIS_URL
+        fromService: # Automatically gets the connection string from the Redis service
+          type: redis
+          name: eterna-redis
+          property: connectionString
+
+  # 3. The WebSocket Server (another public web service)
+  - name: eterna-websocket-server
+    type: web
+    plan: free
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerBuildTarget: websocket-server # Tells Render to build the websocket stage
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: eterna-redis
+          property: connectionString
+
+  # 4. The Aggregator Producer (a background worker)
+  - name: eterna-aggregator-producer
+    type: worker # IMPORTANT: 'worker' type means it runs in the background
+    plan: free
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerBuildTarget: aggregator-producer
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: eterna-redis
+          property: connectionString
+
+  # 5. The Aggregator Worker (another background worker)
+  - name: eterna-aggregator-worker
+    type: worker
+    plan: free
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerBuildTarget: aggregator-worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: eterna-redis
+          property: connectionString
