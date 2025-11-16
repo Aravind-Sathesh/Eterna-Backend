@@ -26,3 +26,40 @@ export interface TokenStatistics {
   lastUpdate?: string;
   runId?: number;
 }
+
+// WebSocket Message Types
+export type SubscriptionAction = 'subscribe' | 'unsubscribe';
+export type ChannelType = 'all' | 'token' | 'volume' | 'price-alerts';
+
+export interface SubscriptionMessage {
+  action: SubscriptionAction;
+  channel: ChannelType;
+  identifier?: string;
+}
+
+export interface TokenDiff {
+  new: AggregatedToken[];
+  updated: AggregatedToken[];
+  removed: string[];
+}
+
+export interface WebSocketMessage {
+  type:
+    | 'CONNECTED'
+    | 'SUBSCRIPTION_SUCCESS'
+    | 'SUBSCRIPTION_ERROR'
+    | 'TOKEN_UPDATE'
+    | 'TOKEN_DIFF'
+    | 'ERROR';
+  message?: string;
+  clientId?: number;
+  payload?: any;
+  timestamp?: number;
+  channel?: string;
+}
+
+export interface ClientMessage {
+  type: 'REQUEST_TOKENS' | 'SUBSCRIBE' | 'UNSUBSCRIBE' | 'GET_SUBSCRIPTIONS';
+  channel?: ChannelType;
+  identifier?: string;
+}
