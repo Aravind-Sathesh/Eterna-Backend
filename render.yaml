@@ -5,15 +5,14 @@ services:
     plan: free
     ipAllowList: []
 
-  # 2. The API Gateway (a public web service)
+  # 2. The API Gateway
   - name: eterna-api-gateway
     type: web
     plan: free
     env: docker
-    build:
-      context: .
-      dockerfilePath: ./Dockerfile
-      target: api-gateway
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    dockerBuildTarget: api-gateway
     envVars:
       - key: NODE_ENV
         value: production
@@ -25,15 +24,14 @@ services:
           name: eterna-redis
           property: connectionString
 
-  # 3. The WebSocket Server (another public web service)
+  # 3. The WebSocket Server
   - name: eterna-websocket-server
     type: web
     plan: free
     env: docker
-    build:
-      context: .
-      dockerfilePath: ./Dockerfile
-      target: websocket-server
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    dockerBuildTarget: websocket-server
     envVars:
       - key: NODE_ENV
         value: production
@@ -45,15 +43,14 @@ services:
           name: eterna-redis
           property: connectionString
 
-  # 4. The Aggregator Producer (a background worker)
+  # 4. The Aggregator Producer
   - name: eterna-aggregator-producer
     type: worker
     plan: free
     env: docker
-    build:
-      context: .
-      dockerfilePath: ./Dockerfile
-      target: aggregator-producer
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    dockerBuildTarget: aggregator-producer
     envVars:
       - key: NODE_ENV
         value: production
@@ -63,15 +60,14 @@ services:
           name: eterna-redis
           property: connectionString
 
-  # 5. The Aggregator Worker (another background worker)
+  # 5. The Aggregator Worker
   - name: eterna-aggregator-worker
     type: worker
     plan: free
     env: docker
-    build:
-      context: .
-      dockerfilePath: ./Dockerfile
-      target: aggregator-worker
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    dockerBuildTarget: aggregator-worker
     envVars:
       - key: NODE_ENV
         value: production
