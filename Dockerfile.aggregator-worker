@@ -3,6 +3,7 @@ FROM node:lts-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY tsconfig*.json ./
 COPY packages ./packages
 COPY services ./services
 RUN npm ci
