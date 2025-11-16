@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@eterna/redis-client": ["packages/redis-client/src"],
+      "@eterna/redis-client/*": ["packages/redis-client/src/*"],
+      "@eterna/types": ["packages/types/src"],
+      "@eterna/types/*": ["packages/types/src/*"]
+    }
+  }
+}

@@ -12,7 +12,7 @@
     "dev:aggregator": "cd services/data-aggregator && npm run dev",
     "dev:gateway": "cd services/api-gateway && npm run dev",
     "dev:websocket": "cd services/websocket-server && npm run dev",
-    "build": "npm run build --workspaces",
+    "build": "npx tsc -b",
     "build:aggregator": "cd services/data-aggregator && npm run build",
     "build:gateway": "cd services/api-gateway && npm run build",
     "build:websocket": "cd services/websocket-server && npm run build",

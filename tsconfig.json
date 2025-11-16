@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/types" },
+    { "path": "packages/redis-client" },
+    { "path": "services/api-gateway" },
+    { "path": "services/data-aggregator" },
+    { "path": "services/websocket-server" }
+  ]
+}
