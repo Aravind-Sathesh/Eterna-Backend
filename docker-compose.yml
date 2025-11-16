@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: eterna-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - eterna-network
+
+  api-gateway:
+    build:
+      context: .
+      target: api-gateway
+    container_name: eterna-api-gateway
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - eterna-network
+
+  aggregator-producer:
+    build:
+      context: .
+      target: aggregator-producer
+    container_name: eterna-aggregator-producer
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - SCHEDULE_INTERVAL=30000
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - eterna-network
+
+  aggregator-worker:
+    build:
+      context: .
+      target: aggregator-worker
+    container_name: eterna-aggregator-worker
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - WORKER_CONCURRENCY=1
+      - WORKER_ID=worker-docker-1
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - eterna-network
+    deploy:
+      replicas: 1
+
+  websocket-server:
+    build:
+      context: .
+      target: websocket-server
+    container_name: eterna-websocket-server
+    ports:
+      - '8080:8080'
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - eterna-network
+
+networks:
+  eterna-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
