@@ -2,7 +2,7 @@
 FROM node:lts-alpine AS builder
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
 COPY packages/redis-client/package.json ./packages/redis-client/
 COPY packages/types/package.json ./packages/types/
 COPY services/api-gateway/package.json ./services/api-gateway/
